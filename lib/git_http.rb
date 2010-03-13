@@ -37,6 +37,7 @@ class GitHttp
     def call(env)
       @env = env
       @req = Rack::Request.new(env)
+      return render_list_or_repos if @req.path_info == "" or @req.path_info == "/"
       
       cmd, path, @reqfile, @rpc = match_routing
 
@@ -267,6 +268,18 @@ class GitHttp
 
     def render_no_access
       [403, PLAIN_TYPE, ["Forbidden"]]
+    end
+
+    def render_list_or_repos
+      root = F.expand_path(@config[:project_root] || `pwd`)
+      repos = Dir[F.join(root,"/**/.git")].map { |repo|
+        repo_path = repo[root.size+1...-4].gsub(/\/$/,'')
+        repo_url = "#{@env['rack.url_scheme']}://#{@env['HTTP_HOST']}/#{repo_path}"
+
+        "git clone #{repo_url}"
+      }.join("\n")
+
+      [200, PLAIN_TYPE, ["REPOS (#{root}):\n#{repos}"]] 
     end
 
 
