@@ -1,8 +1,8 @@
 require 'rubygems'
 require 'rack'
 require 'rack/test'
-require 'test/unit'
 require 'mocha'
+require 'test/unit'
 require 'digest/sha1'
 
 require 'lib/git_http'
