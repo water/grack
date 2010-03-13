@@ -244,6 +244,7 @@ class GitHttp
 
     def git_command(command)
       git_bin = @config[:git_path] || 'git'
+      raise "BAD GIT PATH: #{git_bin.inspect}" if `#{git_bin} --version`.chomp.empty?
       command = "#{git_bin} #{command}"
       command
     end
