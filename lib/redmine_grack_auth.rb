@@ -68,7 +68,10 @@ class RedmineGrackAuth < Rack::Auth::Basic
 			projRow = dbh.select_one("SELECT is_public FROM projects WHERE name=\"" + projName + "\"")
 			
 			push = isPush()
-
+			
+			if(not defined?(projRow.length))
+				return unauthorized
+			end
 			if(projRow.length == 0)
 				return unauthorized
 			end
@@ -101,9 +104,11 @@ class RedmineGrackAuth < Rack::Auth::Basic
 	
 	def getProjectName
 		regexes = ["(.*?)/git-upload-pack$", "(.*?)/git-receive-pack$", "(.*?)/info/refs$", "(.*?)/HEAD$", "(.*?)/objects" ]
+		
+
 		projName = "";
 		for re in regexes
-			if( m = Regexp.new(re).match(@req.path_info) )
+			if( m = Regexp.new(re).match(@req.path) )
 				projPath = m[1];
 				projDir  = projPath.gsub(/^.*\//, "")
 				projName = projDir.gsub(/\.git$/, "")
