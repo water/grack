@@ -5,17 +5,18 @@ use Rack::ShowExceptions
 require 'git_http'
 
 config = {
-  :project_root => "/srv/git",
-  :git_path => '/usr/local/libexec/git-core/git',
-  :upload_pack => true,
-  :receive_pack => true,
+  :project_root          => "/srv/git",
+  :git_path              => '/usr/local/libexec/git-core/git',
+  :upload_pack           => true,
+  :receive_pack          => true,
 
-  :use_redmine_auth => true,
-  :redmine_db_type => "Mysql",
-  :redmine_db_host => "localhost",
-  :redmine_db_name => "miner_rm",
-  :redmine_db_user => "miner_rm",
-  :redmine_db_pass => "password",
+  :use_redmine_auth      => true,
+  :require_ssl_for_auth  => true,
+  :redmine_db_type       => "Mysql",
+  :redmine_db_host       => "localhost",
+  :redmine_db_name       => "miner_rm",
+  :redmine_db_user       => "miner_rm",
+  :redmine_db_pass       => "password",
 
 }
 

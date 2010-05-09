@@ -10,6 +10,7 @@ class RedmineGrackAuth < Rack::Auth::Basic
 		user = userPass[0]
 		pass = userPass[1]
 
+
 		isValid = false
 		begin
 			require 'dbi'
@@ -79,7 +80,9 @@ class RedmineGrackAuth < Rack::Auth::Basic
 				return @app.call(env)
 			end
 
-		
+			if($grackConfig[:require_ssl_for_auth] && @req.scheme != "https")
+				return unauthorized
+			end
 
 			auth = Request.new(env)
 			return unauthorized unless auth.provided?
@@ -97,6 +100,7 @@ class RedmineGrackAuth < Rack::Auth::Basic
 
 		return unauthorized
 	end
+
 
 	def isPush
 		return (@req.request_method == "POST" && Regexp.new("(.*?)/git-receive-pack$").match(@req.path_info) )
