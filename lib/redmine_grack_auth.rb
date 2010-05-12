@@ -5,7 +5,7 @@ require 'rack/auth/basic'
 
 class RedmineGrackAuth < Rack::Auth::Basic
 
-	def valid?(auth, projName, push, dbh)
+	def valid?(auth, projId, push, dbh)
 		userPass = *auth.credentials
 		user = userPass[0]
 		pass = userPass[1]
@@ -21,7 +21,7 @@ class RedmineGrackAuth < Rack::Auth::Basic
 			# At some point alternate auth sources should be implemented
 
 			hashedPass=Digest::SHA1.hexdigest(pass)
-			authData = dbh.select_one("SELECT hashed_password, permissions FROM members, projects, users, roles, member_roles WHERE login=\"" + user + "\" AND identifier=\"" + projName + "\" AND projects.id=members.project_id AND member_roles.member_id=members.id AND users.id=members.user_id AND roles.id=member_roles.role_id AND users.status=1")
+			authData = dbh.select_one("SELECT hashed_password, permissions FROM members, projects, users, roles, member_roles WHERE login=\"" + user + "\" AND identifier=\"" + projId + "\" AND projects.id=members.project_id AND member_roles.member_id=members.id AND users.id=members.user_id AND roles.id=member_roles.role_id AND users.status=1")
 			
 			if(authData.length < 2)
 				return false
@@ -64,9 +64,9 @@ class RedmineGrackAuth < Rack::Auth::Basic
 			dbiPass = $grackConfig[:redmine_db_pass]
 
 
-			projName = getProjectName()
+			projId = getProjectId()
 			dbh = DBI.connect(dbiStr, dbiUsr, dbiPass)
-			projRow = dbh.select_one("SELECT is_public FROM projects WHERE name=\"" + projName + "\"")
+			projRow = dbh.select_one("SELECT is_public FROM projects WHERE identifier=\"" + projId + "\"")
 			
 			push = isPush()
 			
@@ -88,7 +88,7 @@ class RedmineGrackAuth < Rack::Auth::Basic
 			return unauthorized unless auth.provided?
 			return bad_request unless auth.basic?
 
-			if valid?(auth, projName, push, dbh)
+			if valid?(auth, projId, push, dbh)
 				env['REMOTE_USER'] = auth.username
 				return @app.call(env)
 			end
@@ -106,19 +106,19 @@ class RedmineGrackAuth < Rack::Auth::Basic
 		return (@req.request_method == "POST" && Regexp.new("(.*?)/git-receive-pack$").match(@req.path_info) )
 	end
 	
-	def getProjectName
+	def getProjectId
 		regexes = ["(.*?)/git-upload-pack$", "(.*?)/git-receive-pack$", "(.*?)/info/refs$", "(.*?)/HEAD$", "(.*?)/objects" ]
 		
 
-		projName = "";
+		projId = "";
 		for re in regexes
 			if( m = Regexp.new(re).match(@req.path) )
 				projPath = m[1];
 				projDir  = projPath.gsub(/^.*\//, "")
-				projName = projDir.gsub(/\.git$/, "")
+				projId = projDir.gsub(/\.git$/, "")
 			end
 		end
-		return projName
+		return projId
 	end
 
 end
