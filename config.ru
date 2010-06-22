@@ -12,12 +12,8 @@ config = {
 
   :use_redmine_auth      => true,
   :require_ssl_for_auth  => true,
-  :redmine_db_type       => "Mysql",
-  :redmine_db_host       => "localhost",
-  :redmine_db_name       => "miner_rm",
-  :redmine_db_user       => "miner_rm",
-  :redmine_db_pass       => "password",
 
+  :redmine               => 'http://redmine.example.domain/'
 }
 
 

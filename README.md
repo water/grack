@@ -5,6 +5,11 @@ This project aims to replace the builtin git-http-backend CGI handler
 distributed with C Git with a Rack application.  This reason for doing this
 is to allow far more webservers to be able to handle Git smart http requests.
 
+This particular grack fork adds redmine-based
+authentication/authorization for your git repositories. It needs a
+redmine-plugin counterpart, which can be found at
+http://github.com/friflaj/redmine_grack
+
 The default git-http-backend only runs as a CGI script, and specifically is
 only targeted for Apache 2.x usage (it requires PATH_INFO to be set and 
 specifically formatted).  So, instead of trying to get it to work with
