@@ -1,8 +1,8 @@
 require 'rubygems'
 require 'rack'
 require 'rack/test'
-require 'mocha'
 require 'test/unit'
+require 'mocha'
 require 'digest/sha1'
 
 require 'lib/git_http'
@@ -22,12 +22,6 @@ class GitHttpTest < Test::Unit::TestCase
       :receive_pack => true,
     }
     GitHttp::App.new(config)
-  end
-  
-  def test_plain_text_repo_list
-    get '/'
-    assert_equal 200, r.status
-    assert_equal "REPOS (#{example}):\ngit clone http://#{r['HTTP_HOST']}/example", r.body
   end
 
   def test_upload_pack_advertisement
