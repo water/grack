@@ -184,6 +184,20 @@ class GitHttpTest < Test::Unit::TestCase
     assert_equal 404, session.last_response.status
   end
 
+  def test_recognize_git_dir
+    app1 = GitHttp::App.new({:project_root => example})
+    assert !app1.git_dir?(File.join(example,'example'))
+    assert app1.git_dir?(File.join(example,'example','.git'))
+  end
+
+  def test_return_404_on_non_existing_git_dir
+    app1 = GitHttp::App.new({:project_root => example})
+    session = Rack::Test::Session.new(app1)
+
+    session.get "/example2/info/refs?service=git-upload-pack"
+    assert_equal 404, session.last_response.status
+  end
+
   private
 
   def r

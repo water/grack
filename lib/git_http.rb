@@ -172,10 +172,15 @@ class GitHttp
     def get_git_dir(path)
       root = @config[:project_root] || `pwd`
       path = F.expand_path(File.join(root, path))
-      if File.exists?(path) # TODO: check is a valid git directory
+      if File.exists?(path) && (git_dir?(path)||git_dir?(File.join(path,'.git')))
         return path
       end
       false
+    end
+
+    def git_dir?(dir)
+      ['HEAD','config', 'description'].all?{|f| File.exists?(File.join(dir,f)) } && \
+        [ 'branches', 'hooks', 'info', 'objects', 'refs'].all?{|d| File.directory?(File.join(dir,d)) }
     end
 
     def get_service_type
