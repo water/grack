@@ -41,7 +41,6 @@ if config[:use_redmine_auth]
 		false #dummy code, validation is done in module
 	end
 elsif config[:use_ldap_auth]
-puts 'bla'
   require 'lib/ldap_grack_auth'
   use LdapGrackAuth do |user,pass|
     false #dummy code, validation is done in module
