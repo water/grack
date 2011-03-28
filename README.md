@@ -5,10 +5,26 @@ This project aims to replace the builtin git-http-backend CGI handler
 distributed with C Git with a Rack application.  This reason for doing this
 is to allow far more webservers to be able to handle Git smart http requests.
 
-This particular grack fork adds redmine-based
-authentication/authorization for your git repositories. It needs a
-redmine-plugin counterpart, which can be found at
+This particular grack fork adds redmine-based and ldap-based
+authentication/authorization for your git repositories.
+
+Redmine Authentication
+----------------------
+It needs a redmine-plugin counterpart, which can be found at
 http://github.com/friflaj/redmine_grack
+
+LDAP Authentication
+-------------------
+Dependencies: ruby-net-ldap
+The LDAP Authentication mechanism introduces access control based on certain
+patterns. It provides a user spaces under /users/<username>/ which provides
+LDAP-Users a space where only they are allowed to push any kind of repository,
+all other users that have access to the git server are allowed to read from
+these repositories.
+Furthermore, each member of an LDAP-group is allowed to push repositories to
+/<groupname>/, while any user that is allowed on this git server can read from
+these repositories.
+
 
 The default git-http-backend only runs as a CGI script, and specifically is
 only targeted for Apache 2.x usage (it requires PATH_INFO to be set and 

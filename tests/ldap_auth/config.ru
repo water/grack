@@ -1,12 +1,9 @@
 $LOAD_PATH.unshift File.expand_path(File.dirname(__FILE__) + '/lib')
 
-use Rack::ShowExceptions
-
-require 'git_http'
+require 'lib/git_http'
 
 config = {
-  :project_root          => "/srv/git",
-  :git_path              => '/usr/local/libexec/git-core/git',
+  :project_root          => File.expand_path(File.join(File.dirname(__FILE__),'..')),
   :upload_pack           => true,
   :receive_pack          => true,
 
@@ -16,19 +13,11 @@ config = {
 #  :redmine               => 'http://redmine.example.domain/'
 
 #possible ldap auth
-# required values
-#  :use_ldap_auth         => true,
-#  :ldap_host             => "ldap.example.com",
-#  :ldap_base             => 'dc=example,dc=com'
+   :use_ldap_auth         => true,
+   :ldap_host             => "ldap.example.com",
 # the following values are not required but listed here with their defaults
-# don't require a group membership (default)
 #  :ldap_require_groups   => false,
-# can be one group
 #  :ldap_require_groups   => 'test_group'
-# or multiple groups
-#  :ldap_require_groups   => ['test_group','git_access']
-# only check for groups with a certain prefix
-#  :ldap_group_prefix     => 'project_',
 #  :ldap_port             => '636',
 #  :ldap_encryption       => :simple_tls,
 }
@@ -41,7 +30,6 @@ if config[:use_redmine_auth]
 		false #dummy code, validation is done in module
 	end
 elsif config[:use_ldap_auth]
-puts 'bla'
   require 'lib/ldap_grack_auth'
   use LdapGrackAuth do |user,pass|
     false #dummy code, validation is done in module
