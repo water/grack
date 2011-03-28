@@ -5,15 +5,12 @@ require 'test/unit'
 require 'mocha'
 require 'digest/sha1'
 
+require 'tests/grack_test_helper'
 require 'lib/git_http'
-require 'pp'
 
 class GitHttpTest < Test::Unit::TestCase
+  include GrackTestHelper
   include Rack::Test::Methods
-
-  def example
-    File.expand_path(File.dirname(__FILE__))
-  end
 
   def app
     config = {
@@ -198,6 +195,36 @@ class GitHttpTest < Test::Unit::TestCase
     assert_equal 404, session.last_response.status
   end
 
+  def test_create_directory_if_creation_is_allowed
+    IO.stubs(:popen).returns(MockProcess.new)
+    app1 = GitHttp::App.new({:project_root => example})
+    app1.stubs(:get_git_config).with('http.uploadpack').returns('true')
+    app1.stubs(:get_git_config).with('http.receivepack').returns('true')
+    app1.allow_creation!
+    session = Rack::Test::Session.new(app1)
+    require 'fileutils'
+    tmp_path = File.join(example,'example-notyetexistant')
+    app1.expects(:no_git_subdir?).with(tmp_path).returns(true)
+
+    session.post "/example-notyetexistant/git-receive-pack", {}, {"CONTENT_TYPE" => "application/x-git-receive-pack-request" }
+    FileUtils.remove_entry_secure(tmp_path,true)
+    assert_equal 200, session.last_response.status
+
+    # in a subsequent request allow_creation is unset
+    session.post "/example-notyetexistant/git-receive-pack", {}, {"CONTENT_TYPE" => "application/x-git-receive-pack-request" }
+    assert_equal 404, session.last_response.status
+  end
+
+  def test_figure_out_git_subdir
+    app1 = GitHttp::App.new({:project_root => example})
+    require 'fileutils'
+    tmp_path = File.join('/tmp',"#{sprintf('%s%d.%d', 'nogit', $$, 42)}")
+    FileUtils.mkdir_p(tmp_path)
+    assert app1.no_git_subdir?(tmp_path)
+    Dir.rmdir(tmp_path)
+    assert !app1.no_git_subdir?(File.join(example,'lib'))
+  end
+
   private
 
   def r
@@ -228,25 +255,6 @@ class GitHttpTest < Test::Unit::TestCase
     File.unlink(file)
     File.unlink(pack)
     File.unlink(idx)
-  end
-
-end
-
-class MockProcess
-
-  def initialize
-    @counter = 0
-  end
-
-  def write(data)
-  end
-
-  def read(data)
-  end
-
-  def eof?
-    @counter += 1
-    @counter > 1 ? true : false
   end
 
 end

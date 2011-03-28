@@ -26,6 +26,7 @@ class GitHttp
       set_config(config)
     end
 
+    attr_reader :config
     def set_config(config)
       @config = config || {}
     end
@@ -37,6 +38,12 @@ class GitHttp
     def call(env)
       @env = env
       @req = Rack::Request.new(env)
+      result = handle_request
+      @allow_creation = false
+      result
+    end
+
+    def handle_request
       return render_list_or_repos if @req.path_info == "" or @req.path_info == "/"
       
       cmd, path, @reqfile, @rpc = match_routing
@@ -50,6 +57,11 @@ class GitHttp
       Dir.chdir(@dir) do
         self.method(cmd).call()
       end
+    end
+
+    attr_reader :allow_creation
+    def allow_creation!
+      @allow_creation = true
     end
 
     # ---------------------------------
@@ -174,6 +186,13 @@ class GitHttp
       path = F.expand_path(File.join(root, path))
       if File.exists?(path) && (git_dir?(path)||git_dir?(File.join(path,'.git')))
         return path
+      elsif allow_creation && no_git_subdir?(path)
+        require 'fileutils'
+        begin
+          FileUtils.mkdir_p(path)
+          system(git_command("init --bare #{path}"))
+          return path if $?.exitstatus == 0
+        rescue; end
       end
       false
     end
@@ -181,6 +200,10 @@ class GitHttp
     def git_dir?(dir)
       ['HEAD','config', 'description'].all?{|f| File.exists?(File.join(dir,f)) } && \
         [ 'branches', 'hooks', 'info', 'objects', 'refs'].all?{|d| File.directory?(File.join(dir,d)) }
+    end
+
+    def no_git_subdir?(path)
+      path.split(File::Separator).inject([]) { |p,part| p << File.join(p.last.to_s,part) }.reverse.none?{|p| git_dir?(p) || git_dir?(File.join(p,'.git')) }
     end
 
     def get_service_type
