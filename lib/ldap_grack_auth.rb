@@ -11,12 +11,6 @@ class LdapGrackAuth < Rack::Auth::Basic
     @app.config
   end
   
-  def valid?(auth)
-    user, pass = auth.credentials[0,2]
-    login = ldap_login(user,pass)
-    login && check_basic_group_privs(login.first) && check_path_privs(login.first)
-  end
-
   def call(env)
     @req = Rack::Request.new(env)
     auth = Request.new(env)
@@ -25,10 +19,14 @@ class LdapGrackAuth < Rack::Auth::Basic
     result = unauthorized if result.nil? && !auth.provided?
     result = bad_request if result.nil? && !auth.basic?
     if result.nil?
-      if valid?(auth)
+      if ['ro','rw'].include?(access=valid?(auth))
         env['REMOTE_USER'] = auth.username
       else
-        result = unauthorized
+        if access == '404'
+          result = [404, GitHttp::App::PLAIN_TYPE, ["Not Found"]]
+        else
+          result =  unauthorized
+        end
       end
       clean_up
       result.nil? ? @app.call(env) : result
@@ -38,6 +36,13 @@ class LdapGrackAuth < Rack::Auth::Basic
   end
 
   protected
+
+  def valid?(auth)
+    user, pass = auth.credentials[0,2]
+    login = ldap_login(user,pass)
+    login && check_basic_group_privs(login.first) && check_path_privs(login.first)
+  end
+
   def ldap_login(user,pass)
     ldap.bind_as(
       :base     => config[:ldap_base],
@@ -60,30 +65,29 @@ class LdapGrackAuth < Rack::Auth::Basic
   end
   
   def check_path_privs(login)
-    if required_permission == 'rw'
-      access = false
-      if @req.path_info =~  /^\/users\/(\w+)\/.+\/.+/
-        access = check_user_privs(login,$1)
-      elsif @req.path_info =~  /^\/(\w+)\/.+\/.+/
-        access = check_project_privs(login,$1)
-      end
-      @app.allow_creation! if access      
-    else
-      # as we check basic ro access within the basic_group_privs
-      # we need to return true if we don't want to write
-      # also for an initial push we need to allow creation
-      @app.allow_creation!
-      access = true
+    permitted_access = false
+    if @req.path_info =~  /^\/users\/(\w+)\/.+\/.+/
+      permitted_access = check_user_privs(login,$1)
+    elsif @req.path_info =~  /^\/(\w+)\/.+\/.+/
+      permitted_access = check_project_privs(login,$1)
     end
-    access
+
+    if permitted_access == 'ro' && required_permission == 'ro'
+      git_path_exists? ? 'ro' : '404'
+    elsif permitted_access == 'rw'
+      @app.allow_creation!
+      permitted_access
+    else
+      false
+    end
   end
   
   def check_user_privs(login,user)
-    user == login[:uid].first
+    (user == login[:uid].first) ? 'rw' : 'ro'
   end
   
   def check_project_privs(login,project)
-    groups.any?{|group| (group[:cn].first == config[:ldap_group_prefix].to_s + project) && member_in_group?(login,group)}
+    groups.any?{|group| (group[:cn].first == config[:ldap_group_prefix].to_s + project) && member_in_group?(login,group)} ? 'rw' : 'ro'
   end
   
   def check_group(login,group)
@@ -100,10 +104,24 @@ class LdapGrackAuth < Rack::Auth::Basic
   end
 
   def clean_up
-    @ldap = @groups = nil
+    @ldap = @groups = @git_path_exists = @git_rel_path = nil
   end
   
   def required_permission
-    (@req.request_method == "POST" && Regexp.new("(.*?)/git-receive-pack$").match(@req.path_info) ? 'rw' : 'r')
+    (@req.request_method == "POST" && Regexp.new("(.*?)/git-receive-pack$").match(@req.path_info) ? 'rw' : 'ro')
+  end
+
+  def git_path_exists?
+    @git_path_exists ||= File.directory?(git_path)
+  end
+
+  def git_path
+    return @git_path unless @git_path.nil?
+    root = @app.config[:project_root] || `pwd`
+    @git_path = File.expand_path(File.join(root, git_rel_path))
+  end
+
+  def git_rel_path
+    @git_rel_path ||= GitHttp::App.match_routing(@req)[1]
   end
 end

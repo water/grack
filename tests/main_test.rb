@@ -182,9 +182,8 @@ class GitHttpTest < Test::Unit::TestCase
   end
 
   def test_recognize_git_dir
-    app1 = GitHttp::App.new({:project_root => example})
-    assert !app1.git_dir?(File.join(example,'example'))
-    assert app1.git_dir?(File.join(example,'example','.git'))
+    assert !GitHttp::App.git_dir?(File.join(example,'example'))
+    assert GitHttp::App.git_dir?(File.join(example,'example','.git'))
   end
 
   def test_return_404_on_non_existing_git_dir
@@ -204,7 +203,7 @@ class GitHttpTest < Test::Unit::TestCase
     session = Rack::Test::Session.new(app1)
     require 'fileutils'
     tmp_path = File.join(example,'example-notyetexistant')
-    app1.expects(:no_git_subdir?).with(tmp_path).returns(true)
+    GitHttp::App.expects(:no_git_subdir?).with(tmp_path).returns(true)
 
     session.post "/example-notyetexistant/git-receive-pack", {}, {"CONTENT_TYPE" => "application/x-git-receive-pack-request" }
     FileUtils.remove_entry_secure(tmp_path,true)
@@ -216,13 +215,12 @@ class GitHttpTest < Test::Unit::TestCase
   end
 
   def test_figure_out_git_subdir
-    app1 = GitHttp::App.new({:project_root => example})
     require 'fileutils'
     tmp_path = File.join('/tmp',"#{sprintf('%s%d.%d', 'nogit', $$, 42)}")
     FileUtils.mkdir_p(tmp_path)
-    assert app1.no_git_subdir?(tmp_path)
+    assert GitHttp::App.no_git_subdir?(tmp_path)
     Dir.rmdir(tmp_path)
-    assert !app1.no_git_subdir?(File.join(example,'lib'))
+    assert !GitHttp::App.no_git_subdir?(File.join(example,'lib'))
   end
 
   private

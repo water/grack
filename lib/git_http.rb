@@ -22,6 +22,30 @@ class GitHttp
       ["GET",  'get_idx_file',     "(.*?)/objects/pack/pack-[0-9a-f]{40}\\.idx$"],      
     ]
 
+    def self.match_routing(req)
+      cmd = nil
+      path = nil
+      SERVICES.each do |method, handler, match, rpc|
+        if m = Regexp.new(match).match(req.path_info)
+          return ['not_allowed'] if method != req.request_method
+          cmd = handler
+          path = m[1]
+          file = req.path_info.sub(path + '/', '')
+          return [cmd, path, file, rpc]
+        end
+      end
+      return nil
+    end
+
+    def self.git_dir?(dir)
+      ['HEAD','config', 'description'].all?{|f| File.exists?(File.join(dir,f)) } && \
+        [ 'branches', 'hooks', 'info', 'objects', 'refs'].all?{|d| File.directory?(File.join(dir,d)) }
+    end
+
+    def self.no_git_subdir?(path)
+      path.split(File::Separator).inject([]) { |p,part| p << File.join(p.last.to_s,part) }.reverse.none?{|p| git_dir?(p) || git_dir?(File.join(p,'.git')) }
+    end
+
     def initialize(config = false)
       set_config(config)
     end
@@ -38,15 +62,18 @@ class GitHttp
     def call(env)
       @env = env
       @req = Rack::Request.new(env)
-      result = handle_request
-      @allow_creation = false
-      result
+      begin
+        result = handle_request
+      ensure
+        @allow_creation = false
+        result
+      end
     end
 
     def handle_request
       return render_list_or_repos if @req.path_info == "" or @req.path_info == "/"
       
-      cmd, path, @reqfile, @rpc = match_routing
+      cmd, path, @reqfile, @rpc = GitHttp::App.match_routing(@req)
 
       return render_method_not_allowed if cmd == 'not_allowed'
       return render_not_found if !cmd
@@ -184,9 +211,9 @@ class GitHttp
     def get_git_dir(path)
       root = @config[:project_root] || `pwd`
       path = F.expand_path(File.join(root, path))
-      if File.exists?(path) && (git_dir?(path)||git_dir?(File.join(path,'.git')))
+      if File.exists?(path) && (GitHttp::App.git_dir?(path)||GitHttp::App.git_dir?(File.join(path,'.git')))
         return path
-      elsif allow_creation && no_git_subdir?(path)
+      elsif allow_creation && GitHttp::App.no_git_subdir?(path)
         require 'fileutils'
         begin
           FileUtils.mkdir_p(path)
@@ -197,35 +224,11 @@ class GitHttp
       false
     end
 
-    def git_dir?(dir)
-      ['HEAD','config', 'description'].all?{|f| File.exists?(File.join(dir,f)) } && \
-        [ 'branches', 'hooks', 'info', 'objects', 'refs'].all?{|d| File.directory?(File.join(dir,d)) }
-    end
-
-    def no_git_subdir?(path)
-      path.split(File::Separator).inject([]) { |p,part| p << File.join(p.last.to_s,part) }.reverse.none?{|p| git_dir?(p) || git_dir?(File.join(p,'.git')) }
-    end
-
     def get_service_type
       service_type = @req.params['service']
       return false if !service_type
       return false if service_type[0, 4] != 'git-'
       service_type.gsub('git-', '')
-    end
-
-    def match_routing
-      cmd = nil
-      path = nil
-      SERVICES.each do |method, handler, match, rpc|
-        if m = Regexp.new(match).match(@req.path_info)
-          return ['not_allowed'] if method != @req.request_method
-          cmd = handler
-          path = m[1]
-          file = @req.path_info.sub(path + '/', '')
-          return [cmd, path, file, rpc]
-        end
-      end
-      return nil
     end
 
     def has_access(rpc, check_content_type = false)
