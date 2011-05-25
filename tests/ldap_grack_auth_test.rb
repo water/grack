@@ -199,7 +199,30 @@ class LdapGrackAuthTest < Test::Unit::TestCase
     
     assert_equal 200, last_response.status
   end
-  
+
+  def test_should_succeed_on_my_users_url_with_rw_access_with_special_user_name
+    MockLdap.any_instance.expects(:bind_as).with(
+      :base => app.config[:ldap_base],
+      :filter => 'uid=nice',
+      :password => 'girl'
+    ).returns([nice_girl2_ldap])
+
+    MockLdap.any_instance.expects(:search).with(
+      :base => app.config[:ldap_base],
+      :attributes => ['cn','gidNumber','memberUid'],
+      :filter => '(objectClass=posixGroup)'
+    ).returns([{:cn => ['base_group'], :gidnumber=> ['2'], :memberuid => []},{:cn => ['git_access'], :gidnumber=> ['1'], :memberuid => ['ngirl-2']}])
+    app.config[:ldap_require_groups] = 'base_group'
+    # map any request back to our example git repo
+    GitHttp::App.any_instance.expects(:get_git_dir).with('/users/ngirl-2/foobar').returns(example)
+
+    authorize 'nice', 'girl'
+    IO.stubs(:popen).yields(MockProcess.new)
+    post "/users/ngirl-2/foobar/git-receive-pack", {}, {"CONTENT_TYPE" => "application/x-git-receive-pack-request"}
+
+    assert_equal 200, last_response.status
+  end
+
   def test_should_fail_on_root_user_url
     MockLdap.any_instance.expects(:bind_as).with(
       :base => app.config[:ldap_base],
@@ -241,6 +264,30 @@ class LdapGrackAuthTest < Test::Unit::TestCase
     authorize 'nice', 'girl'
     IO.stubs(:popen).yields(MockProcess.new)
     post "/project_foo/foobar/git-receive-pack", {}, {"CONTENT_TYPE" => "application/x-git-receive-pack-request"}
+
+    assert_equal 200, last_response.status
+  end
+
+  def test_should_succeed_with_rw_on_a_project_url_where_project_member_and_special_groupname
+    MockLdap.any_instance.expects(:bind_as).with(
+      :base => app.config[:ldap_base],
+      :filter => 'uid=nice',
+      :password => 'girl'
+    ).returns([nice_girl_ldap])
+
+    MockLdap.any_instance.expects(:search).with(
+      :base => app.config[:ldap_base],
+      :attributes => ['cn','gidNumber','memberUid'],
+      :filter => '(objectClass=posixGroup)'
+    ).returns([{:cn => ['base_group'], :gidnumber=> ['2'], :memberuid => []},{:cn => ['project-foo'], :gidnumber=> ['1'], :memberuid => ['ngirl']}])
+    app.config[:ldap_require_groups] = 'base_group'
+
+    # map any request back to our example git repo
+    GitHttp::App.any_instance.expects(:get_git_dir).with('/project-foo/foobar').returns(example)
+
+    authorize 'nice', 'girl'
+    IO.stubs(:popen).yields(MockProcess.new)
+    post "/project-foo/foobar/git-receive-pack", {}, {"CONTENT_TYPE" => "application/x-git-receive-pack-request"}
 
     assert_equal 200, last_response.status
   end
@@ -373,6 +420,9 @@ class LdapGrackAuthTest < Test::Unit::TestCase
   
   def nice_girl_ldap
     { :uid => ['ngirl'],:uidnumber => ['42'], :gidnumber => ['2'] }
+  end
+  def nice_girl2_ldap
+    { :uid => ['ngirl-2'],:uidnumber => ['42'], :gidnumber => ['2'] }
   end
 end
 

@@ -66,9 +66,9 @@ class LdapGrackAuth < Rack::Auth::Basic
   
   def check_path_privs(login)
     permitted_access = false
-    if @req.path_info =~  /^\/users\/(\w+)\/.+\/.+/
+    if @req.path_info =~  /^\/users\/([_a-z][-0-9_a-z]*)\/.+\/.+/
       permitted_access = check_user_privs(login,$1)
-    elsif @req.path_info =~  /^\/(\w+)\/.+\/.+/
+    elsif @req.path_info =~  /^\/([_a-z][-0-9_a-z]*)\/.+\/.+/
       permitted_access = check_project_privs(login,$1)
     end
 
