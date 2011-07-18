@@ -134,6 +134,44 @@ class LdapGrackAuthTest < Test::Unit::TestCase
     
     assert_equal 200, last_response.status
   end  
+  def test_should_succeed_if_group_is_required_and_user_is_in_the_first_group
+    MockLdap.any_instance.expects(:bind_as).with(
+      :base => app.config[:ldap_base],
+      :filter => 'uid=nice',
+      :password => 'girl'
+    ).returns([nice_girl_ldap])
+
+    MockLdap.any_instance.expects(:search).with(
+      :base => app.config[:ldap_base],
+      :attributes => ['cn','gidNumber','memberUid'],
+      :filter => '(objectClass=posixGroup)'
+    ).returns([{:cn => ['foo_group'], :gidnumber=> ['3'], :memberuid => ['ngirl']},{:cn => ['git_access'], :gidnumber=> ['1'], :memberuid => ['']}])
+    app.config[:ldap_require_groups] = ['foo_group','base_group']
+
+    authorize 'nice', 'girl'
+    get "/example/.git/info/refs"
+
+    assert_equal 200, last_response.status
+  end
+  def test_should_succeed_if_group_is_required_and_user_is_the_second_group
+    MockLdap.any_instance.expects(:bind_as).with(
+      :base => app.config[:ldap_base],
+      :filter => 'uid=nice',
+      :password => 'girl'
+    ).returns([nice_girl_ldap])
+
+    MockLdap.any_instance.expects(:search).with(
+      :base => app.config[:ldap_base],
+      :attributes => ['cn','gidNumber','memberUid'],
+      :filter => '(objectClass=posixGroup)'
+    ).returns([{:cn => ['foo_group'], :gidnumber => ['4'], :memberuid => []},{:cn => ['base_group'], :gidnumber=> ['3'], :memberuid => ['ngirl']},{:cn => ['git_access'], :gidnumber=> ['1'], :memberuid => ['']}])
+    app.config[:ldap_require_groups] = ['foo_group','base_group']
+
+    authorize 'nice', 'girl'
+    get "/example/.git/info/refs"
+
+    assert_equal 200, last_response.status
+  end
   def test_should_fail_on_users_url_with_rw_access_but_not_myself
     MockLdap.any_instance.expects(:bind_as).with(
       :base => app.config[:ldap_base],

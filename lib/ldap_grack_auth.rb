@@ -91,7 +91,7 @@ class LdapGrackAuth < Rack::Auth::Basic
   end
   
   def check_group(login,group)
-    (ldap_group = groups.first{|g| g[:cn].first == group }) && member_in_group?(login,ldap_group)
+    (ldap_group = groups.find{|g| g[:cn].first == group }) && member_in_group?(login,ldap_group)
   end
 
   def member_in_group?(login,group)
