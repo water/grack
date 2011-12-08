@@ -15,22 +15,24 @@ class LdapGrackAuth < Rack::Auth::Basic
     @req = Rack::Request.new(env)
     auth = Request.new(env)
     
-    result = nil
-    result = unauthorized if result.nil? && !auth.provided?
-    result = bad_request if result.nil? && !auth.basic?
-    if result.nil?
-      if ['ro','rw'].include?(access=valid?(auth))
+    if !auth.provided?
+      unauthorized
+    elsif !auth.basic?
+      bad_request
+    else
+      result = if ['ro','rw'].include?(access=valid?(auth))
         env['REMOTE_USER'] = auth.username
+        @app.call(env)
       else
         if access == '404'
-          result = [404, GitHttp::App::PLAIN_TYPE, ["Not Found"]]
+          [ 404, GitHttp::App::PLAIN_TYPE, ["Not Found"] ]
+        elsif access == '403'
+           [ 403, GitHttp::App::PLAIN_TYPE, ['Access denied.'] ]
         else
-          result =  unauthorized
+          unauthorized
         end
       end
       clean_up
-      result.nil? ? @app.call(env) : result
-    else
       result
     end
   end
@@ -40,7 +42,7 @@ class LdapGrackAuth < Rack::Auth::Basic
   def valid?(auth)
     user, pass = auth.credentials[0,2]
     login = ldap_login(user,pass)
-    login && check_basic_group_privs(login.first) && check_path_privs(login.first)
+    (login && check_basic_group_privs(login.first)) ? check_path_privs(login.first) : '403'
   end
 
   def ldap_login(user,pass)
@@ -66,20 +68,22 @@ class LdapGrackAuth < Rack::Auth::Basic
   
   def check_path_privs(login)
     permitted_access = false
-    if @req.path_info =~  /^\/users\/([_a-z][-0-9_a-z]*)\/.+\/.+/
-      permitted_access = check_user_privs(login,$1)
-    elsif @req.path_info =~  /^\/([_a-z][-0-9_a-z]*)\/.+\/.+/
-      permitted_access = check_project_privs(login,$1)
+    if invalid_path_request?(items = @req.path_info.split('/').reject(&:empty?))
+        permitted_access = '403'
+    elsif user_path_request?(items)
+        permitted_access = check_user_privs(login,items[1])
+    else
+        permitted_access = check_project_privs(login,items[0])
     end
 
     if permitted_access == 'ro' && required_permission == 'ro'
-      git_path_exists? ? 'ro' : '404'
+      permitted_access = git_path_exists? ? 'ro' : '404'
+    elsif permitted_access == 'ro' && required_permission == 'rw'
+      permitted_access = '403'
     elsif permitted_access == 'rw'
       @app.allow_creation!
-      permitted_access
-    else
-      false
     end
+    permitted_access
   end
   
   def check_user_privs(login,user)
@@ -123,5 +127,18 @@ class LdapGrackAuth < Rack::Auth::Basic
 
   def git_rel_path
     @git_rel_path ||= GitHttp::App.match_routing(@req)[1]
+  end
+
+  # Decide whether this is an access to some lower path or directly
+  # into the root of the storage folder
+  def invalid_path_request?(items)
+    (items.size < 3) ||
+      (items[0] == 'users' && items.size < 4) ||
+      (items[0] == 'users' && items[2] == 'info' && items[3] == 'refs') ||
+        (items[1] == 'info' && items[2] == 'refs')
+  end
+
+  def user_path_request?(items)
+    items[0] == 'users'
   end
 end
