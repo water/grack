@@ -38,8 +38,8 @@ class GitHttp
     end
 
     def self.git_dir?(dir)
-      ['HEAD','config', 'description'].all?{|f| File.exists?(File.join(dir,f)) } && \
-        [ 'branches', 'hooks', 'info', 'objects', 'refs'].all?{|d| File.directory?(File.join(dir,d)) }
+      ['HEAD','config'].all?{|f| File.exists?(File.join(dir,f)) } && \
+        ['hooks', 'info', 'objects', 'refs'].all?{|d| File.directory?(File.join(dir,d)) }
     end
 
     def self.no_git_subdir?(path)
