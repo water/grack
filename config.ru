@@ -43,7 +43,16 @@ elsif config[:use_ldap_auth]
   use LdapGrackAuth do |user,pass|
     false #dummy code, validation is done in module
   end
+elsif defined? $registeredPlugins
+  # To see how to use this, look at KerberosGrackAuth
+  # And start rackup with arguments
+  #
+  # `--include lib --require kerberos_grack_auth.rb`
+  #
+  $registeredPlugins.each do |plugin|
+    p plugin # So you see that it actually loads
+    use plugin
+  end
 end
-
 
 run GitHttp::App.new(config)
