@@ -1,8 +1,6 @@
-$LOAD_PATH.unshift File.expand_path(File.dirname(__FILE__) + '/lib')
-
 use Rack::ShowExceptions
 
-require 'git_http'
+require './lib/git_http.rb'
 
 config = {
   :project_root          => "/tmp/git-repos",
@@ -45,7 +43,16 @@ elsif config[:use_ldap_auth]
   use LdapGrackAuth do |user,pass|
     false #dummy code, validation is done in module
   end
+elsif defined? $registeredPlugins
+  # To see how to use this, look at KerberosGrackAuth
+  # And start rackup with arguments
+  #
+  # `--include lib --require kerberos_grack_auth.rb`
+  #
+  $registeredPlugins.each do |plugin|
+    p plugin # So you see that it actually loads
+    use plugin
+  end
 end
-
 
 run GitHttp::App.new(config)
