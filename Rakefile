@@ -1,3 +1,4 @@
+$LOAD_PATH << '.'
 task :default => :test
  
 desc "Run the tests."
