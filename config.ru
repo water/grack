@@ -1,6 +1,7 @@
 use Rack::ShowExceptions
 
 require './lib/git_http.rb'
+require './lib/kerberos_grack_auth.rb'
 
 config = {
   project_root:          "/tmp/git-repos",
