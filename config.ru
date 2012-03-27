@@ -3,10 +3,10 @@ use Rack::ShowExceptions
 require './lib/git_http.rb'
 
 config = {
-  :project_root          => "/srv/git",
-  :git_path              => '/usr/local/libexec/git-core/git',
-  :upload_pack           => true,
-  :receive_pack          => true,
+  project_root:          "/srv/git",
+  git_path:              '/usr/local/libexec/git-core/git',
+  upload_pack:           true,
+  receive_pack:          true,
 }
 
 
