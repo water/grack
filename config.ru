@@ -7,19 +7,13 @@ config = {
   git_path:              '/usr/local/libexec/git-core/git',
   upload_pack:           true,
   receive_pack:          true,
+
+  use_kerberos_auth:     true,
 }
 
 
-if defined? $registeredPlugins
-  # To see how to use this, look at KerberosGrackAuth
-  # And start rackup with arguments
-  #
-  # `--include lib --require kerberos_grack_auth.rb`
-  #
-  $registeredPlugins.each do |plugin|
-    p plugin # So you see that it actually loads
-    use plugin
-  end
+if config[:use_kerberos_auth]
+  use KerberosGrackAuth
 end
 
 run GitHttp::App.new(config)
